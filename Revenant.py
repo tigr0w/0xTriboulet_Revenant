@@ -122,6 +122,10 @@ def encode_strings(strings):
     return "\n".join(encoded_strings)
 
 
+def xor_encrypt(data: str, key: str) -> str:
+    return ''.join(chr(ord(a) ^ ord(b)) for a, b in zip(data, key * len(data)))
+
+
 def replace_in_file(filename, old_string, new_string):
     with open(filename, "r+") as f:
         file_contents = f.read()
@@ -137,6 +141,36 @@ def process_strings_h():
         with open(filepath, 'w') as f:
             f.write(strings_file)
 
+
+def process_config_h_with_encryption(config: dict):
+    config_user_agent = config['Options']['Listener']['UserAgent']
+    config_host_bind = config['Options']['Listener']['HostBind']
+    config_host_port:          str = config['Options']['Listener']['Port']
+    config_host_secure:        str = str(config['Options']['Listener']['Secure']).upper()
+    config_sleep:              str = config['Config']['Sleep']
+    config_poly:               str = str(config['Config']['Polymorphic'])
+    config_obf_strings:        str = str(config['Config']['Obfuscation'])
+    config_arch:               str = config['Options']['Arch']
+    config_native:             str = config['Config']['Native']
+
+    encrypted_user_agent = xor_encrypt(config_user_agent, GENERATED_PASSWORD)
+    encrypted_host_bind = xor_encrypt(config_host_bind, GENERATED_PASSWORD)
+
+    header_file = f'''#define CONFIG_USER_AGENT L"{encrypted_user_agent}"
+#define CONFIG_HOST L"{encrypted_host_bind}" 
+#define CONFIG_PORT {config_host_port}
+#define CONFIG_SECURE {str(config_host_secure).upper()}
+#define CONFIG_SLEEP {config_sleep} 
+#define CONFIG_POLYMORPHIC {str(config_poly).upper()}  
+#define CONFIG_OBFUSCATION {str(config_obf_strings).upper()}
+#define CONFIG_ARCH {config_arch}  
+#define CONFIG_NATIVE {config_native}'''
+
+    for filepath in glob.iglob('**/Config.h', recursive=True):
+        with open(filepath, 'w') as f:
+            f.write(header_file)
+
+
 def process_config_h(config: dict):
     config_user_agent:         str = config['Options']['Listener']['UserAgent']
     config_host_bind:          str = config['Options']['Listener']['HostBind']
@@ -148,8 +182,7 @@ def process_config_h(config: dict):
     config_arch:               str = config['Options']['Arch']
     config_native:             str = config['Config']['Native']
 
-    header_file = f'''
-#define CONFIG_USER_AGENT L"{config_user_agent}"
+    header_file = f'''#define CONFIG_USER_AGENT L"{config_user_agent}"
 #define CONFIG_HOST L"{config_host_bind}"
 #define CONFIG_PORT {config_host_port}
 #define CONFIG_SECURE {str(config_host_secure).upper()}
@@ -157,8 +190,7 @@ def process_config_h(config: dict):
 #define CONFIG_POLYMORPHIC {str(config_poly).upper()}  
 #define CONFIG_OBFUSCATION {str(config_obf_strings).upper()}
 #define CONFIG_ARCH {config_arch}  
-#define CONFIG_NATIVE {config_native}
-    '''
+#define CONFIG_NATIVE {config_native}'''
 
     for filepath in glob.iglob('**/Config.h', recursive=True):
         with open(filepath, 'w') as f:

