@@ -182,8 +182,8 @@ def process_config_h(config: dict):
     config_arch:               str = config['Options']['Arch']
     config_native:             str = config['Config']['Native']
 
-    header_file = f'''#define CONFIG_USER_AGENT L"{config_user_agent}"
-#define CONFIG_HOST L"{config_host_bind}"
+    header_file = f'''#define CONFIG_USER_AGENT {config_user_agent}
+#define CONFIG_HOST {config_host_bind}
 #define CONFIG_PORT {config_host_port}
 #define CONFIG_SECURE {str(config_host_secure).upper()}
 #define CONFIG_SLEEP {config_sleep} 
